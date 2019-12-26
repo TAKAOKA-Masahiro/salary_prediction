@@ -1,0 +1,173 @@
+---
+title: "salary_prediction"
+author: "Masahiro TAKAOKA"
+date: "2019/12/24"
+output: pdf_document
+---
+
+# Overview
+This project is part of HarvardX: PH125.9x Data Science: Capstone course and the purpose of this project is to predict user reviews for movies. This report includes not only prediction but also exploratory data analysis, understanding the uniqueness of the data and searching for a machine learning model suitable for the task.  
+
+Salary prediction was held at a data analysis competition called "prob.space" from November 6, 2019 to December 23, 2019. This site is a data analysis competition that was released in 2019 and can be called the Japanese version of kaggle, which is still in beta. This site is premised on participation using Python, but for the final report of the PH125.9x Data Science, I used the data set of this competition and analyzed using R.
+
+# Competition Overview (Translation of the official website competition overview)
+Akaike-kun, who is in charge of personnel at a company, has lost the salary rules for determining employee salaries. At the same time, the bankbook was lost and some employees lost their salary information.
+
+Employee information and salary data will be given, so let's predict the salary information of the lost employee to help Akaike who is in trouble.
+
+# Dataset description (Translation of the official website Data description)
+The data is divided into two groups.
+
+Training data (train_data.csv)
+Test data (test_data.csv)
+
+The training data set and test data set contain 21,000 and 9,000 samples, respectively.
+Use the training data set to build a machine learning model. For the training data set, salary values are given.
+Since we need to use a test dataset to see how much the model has been run against new data,
+There is no salary data for each employee.
+So use test data sets to predict each employee's salary.
+
+Please refer to the tag of evaluation method for an example of the submitted file.
+
+# Data format (Translation of the official website Data format)
+The columns of the data set are as follows.
+The original data set used in this competition had Japanese prefecture names stored in the area column.
+In order to be reviewed in the final assignment of this course, the area column has been replaced with the prefecture code according to the rules of Japanese ISO.
+
+position : position (0 = No position, 1 = Chief, 2 = Senior Staff, 3 = Manager, 4 = General Manager)  
+age : age  
+area : Prefecture code (https://en.wikipedia.org/wiki/Prefectures_of_Japan#By_Japanese_ISO)  
+sex : gender (1 = male, 2 = female)  
+partner presence / absence of spouse : (0 = none, 1 = present)  
+num_child : Number of children (people)  
+education : (0 = high school, 1 = Associate degree, 2 = Bachelor, 3 = master, 4 = doctor)  
+service_length : Length of service (years)  
+study_time : Study time per week (h)  
+commute : commute time (h)  
+overtime : Overtime hours per month (h)  
+
+salary : monthly salary (in units of 1,000 yen)
+
+
+# Evaluation
+## Goal
+The goal is to predict the employee's salary based on the employee data in the test data set. Predict y (salary) with a real value.
+
+# metric
+The predictive performance of the model is evaluated by MAE (mean absolute error) of predicted values and true values from 9,000 test data sets.
+
+$$ MAE = \frac{1}{N}\displaystyle\sum_{i=1}^{N} |y-\hat{y}| $$
+
+Here $y$ is the true value, $\hat{y}$ is the predicted value.
+
+# Submission file format
+Prepare a submission submission.csv (including 9,000 entries and header lines).
+An error will occur if the submitted file contains extra rows or columns (other than id and y).
+
+The submission file must contain only the following columns:
+
+id (same order as test data set)  
+y (predicted salary)
+
+# Install required packages
+
+```{r}
+if(!require(caret)) install.packages("caret", repos = "http://cran.us.r-project.org")
+if(!require(ggplot2)) install.packages("ggplot2", repos = "http://cran.us.r-project.org")
+if(!require(dplyr)) install.packages("dplyr", repos = "http://cran.us.r-project.org")
+if(!require(readxl)) install.packages("readxl", repos = "http://cran.us.r-project.org")
+if(!require(readr)) install.packages("readr", repos = "http://cran.us.r-project.org")
+```
+
+
+# Loading a dataset (Prepared on Github)
+
+```{r}
+# https://github.com/TAKAOKA-Masahiro/salary_prediction
+
+test_data_eng <- read_csv("test_data_eng.csv")
+train_data_eng <- read_csv("train_data_eng.csv")
+```
+
+# EDA (Exploratory Data Analysis)
+
+```{r}
+
+```
+
+# Model Building on eng data set
+
+```{r}
+# Model Building on eng data set
+## Create test dataset and train dataset
+# set.seed
+
+head(test_data_eng)
+head(train_data_eng)
+nrow(test_data_eng)
+nrow(train_data_eng)
+
+# check null
+sum(is.na(train_data_eng))
+sum(is.na(test_data_eng))
+
+# EDA about position
+hist(train_data_eng$position, main="position", xlab="position", col="#993435")
+# EDA about age
+hist(train_data_eng$age, main="age", xlab="age", col="#993435")
+# EDA about area
+train_data_eng$area %>%
+  table %>%
+  as.data.frame() %>%
+  ggplot(aes(x =  ., y = Freq, fill = .)) +
+  geom_bar(stat = "identity")
+# EDA about sex
+train_data_eng$sex %>%
+  table %>%
+  as.data.frame() %>%
+  ggplot(aes(x =  ., y = Freq, fill = .)) +
+  geom_bar(stat = "identity")
+# EDA about partner
+train_data_eng$partner %>%
+  table %>%
+  as.data.frame() %>%
+  ggplot(aes(x =  ., y = Freq, fill = .)) +
+  geom_bar(stat = "identity")
+# EDA about num_child
+train_data_eng$num_child %>%
+  table %>%
+  as.data.frame() %>%
+  ggplot(aes(x =  ., y = Freq, fill = .)) +
+  geom_bar(stat = "identity")
+# EDA about education
+train_data_eng$education %>%
+  table %>%
+  as.data.frame() %>%
+  ggplot(aes(x =  ., y = Freq, fill = .)) +
+  geom_bar(stat = "identity")
+
+
+# EDA about service_length
+hist(train_data_eng$service_length, main="service_length", xlab="service_length", col="#993435")
+# EDA about study_time
+hist(train_data_eng$study_time, main="study_time", xlab="study_time", col="#993435")
+# EDA about commute
+hist(train_data_eng$commute, main="commute", xlab="commute", col="#993435")
+# EDA about overtime
+hist(train_data_eng$overtime, main="overtime", xlab="overtime", col="#993435")
+# EDA about salary
+hist(train_data_eng$salary, main="salary", xlab="salary", col="#993435")
+
+
+# Scatter plot of "commute" and "salary"
+plot(train_data_eng$commute,train_data_eng$salary)
+
+test_train3 <- train_data_eng %>% filter((area == 13 | area == 27) & partner == 0) 
+head(test_train3)
+plot(test_train3$commute,test_train3$salary)
+
+test_train4 <- train_data_eng %>% filter(area != 13 & area != 27 & partner == 0) 
+head(test_train4)
+plot(test_train4$commute,test_train4$salary)
+```
+
