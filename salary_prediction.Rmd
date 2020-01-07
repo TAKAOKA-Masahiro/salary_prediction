@@ -1,0 +1,461 @@
+---
+title: "salary_prediction"
+author: "Masahiro TAKAOKA"
+date: "2020/1/8"
+output: pdf_document
+---
+
+# Overview
+This project is part of the HarvardX: PH125.9x Data Science: Capstone course and the purpose of this project is to create an analysis report using a dataset of our own choosing. 
+
+Salary prediction was held at a data analysis competition called "prob.space" from November 6, 2019 to December 23, 2019. This site is a data analysis competition that was released in 2019 and can be called the Japanese version of kaggle, which is still in beta. This site is premised on participation using Python, but for the final report of the PH125.9x Data Science, I used the data set of this competition and analyzed using R.
+
+Note: If the result is not returned due to heavy processing, please run again or change the equipment.
+
+# Competition Overview 
+Akaike-kun, who is in charge of personnel at a company, has lost the salary rules for determining employee salaries. At the same time, the bankbook was lost and some employees lost their salary information.
+
+Employee information and salary data will be given, so let's predict the salary information of the lost employee to help Akaike who is in trouble.
+
+# Dataset description 
+The data is divided into two groups.
+
+Training data (train_data.csv)
+Test data (test_data.csv)
+
+The training data set and test data set contain 21,000 and 9,000 samples, respectively.
+Use the training data set to build a machine learning model. For the training data set, salary values are given.
+Since we need to use a test dataset to see how much the model has been run against new data,
+There is no salary data for each employee.
+So use test data sets to predict each employee's salary.
+
+Please refer to the tag of evaluation method for an example of the submitted file.
+
+# Data format
+The columns of the data set are as follows.
+The original data set used in this competition had Japanese prefecture names stored in the area column.
+In order to be reviewed in the final assignment of this course, the area column has been replaced with the prefecture code according to the rules of Japanese ISO.
+
+position : position (0 = No position, 1 = Chief, 2 = Senior Staff, 3 = Manager, 4 = General Manager)  
+age : age  
+area : Prefecture code (https://en.wikipedia.org/wiki/Prefectures_of_Japan#By_Japanese_ISO)  
+sex : gender (1 = male, 2 = female)  
+partner presence / absence of spouse : (0 = none, 1 = present)  
+num_child : Number of children (people)  
+education : (0 = high school, 1 = Associate degree, 2 = Bachelor, 3 = master, 4 = doctor)  
+service_length : Length of service (years)  
+study_time : Study time per week (h)  
+commute : commute time (h)  
+overtime : Overtime hours per month (h)  
+
+salary : monthly salary (in units of 1,000 yen)
+
+
+# Evaluation
+## Goal
+The goal is to predict the employee's salary based on the employee data in the test data set. Predict y (salary) with a real value.
+
+# metric
+The predictive performance of the model is evaluated by MAE (mean absolute error) of predicted values and true values from 9,000 test data sets.
+
+$$ MAE = \frac{1}{N}\displaystyle\sum_{i=1}^{N} |y-\hat{y}| $$
+
+Here $y$ is the true value, $\hat{y}$ is the predicted value.
+
+# Submission file format
+Prepare a submission submission.csv (including 9,000 entries and header lines).
+An error will occur if the submitted file contains extra rows or columns (other than id and y).
+
+The submission file must contain only the following columns:
+
+id (same order as test data set)  
+y (predicted salary)
+
+# Install required packages
+
+```{r message=FALSE, warning=FALSE}
+# Install and load required packages
+if(!require(caret)) install.packages("caret", repos = "http://cran.us.r-project.org")
+if(!require(ggplot2)) install.packages("ggplot2", repos = "http://cran.us.r-project.org")
+if(!require(dplyr)) install.packages("dplyr", repos = "http://cran.us.r-project.org")
+if(!require(readxl)) install.packages("readxl", repos = "http://cran.us.r-project.org")
+if(!require(readr)) install.packages("readr", repos = "http://cran.us.r-project.org")
+if(!require(psych)) install.packages("psych", repos = "http://cran.us.r-project.org")
+```
+
+
+# Loading a dataset (Prepared on Github)
+
+```{r}
+# https://github.com/TAKAOKA-Masahiro/salary_prediction
+
+# Data type is specified
+test_data_eng <- read_csv("test_data_eng.csv", col_types=("iiiiiiiiiidd"))
+train_data_eng <- read_csv("train_data_eng.csv", col_types=("iiiiiiiiiiddd"))
+```
+
+# EDA (Exploratory Data Analysis)
+
+```{r}
+# Check the first few lines
+head(train_data_eng)
+# Check the data structure
+str(train_data_eng)
+# Check basic statistics
+summary(train_data_eng)
+```
+
+# EDA
+## Create test dataset and train dataset
+# set.seed
+```{r}
+# Model Building on eng data set
+# check null
+sum(is.na(train_data_eng))
+sum(is.na(test_data_eng))
+```
+
+## Check the distribution of data for each variable in the histogram
+
+```{r}
+# EDA about position
+hist(train_data_eng$position, main="position", xlab="position", col="#993435")
+```
+
+This column seems to be related to age.
+
+```{r}
+# EDA about age
+hist(train_data_eng$age, main="age", xlab="age", col="#993435")
+```
+
+There are many records in the early 20's.
+
+
+```{r}
+# EDA about area
+train_data_eng$area %>%
+  table %>%
+  as.data.frame() %>%
+  ggplot(aes(x =  ., y = Freq, fill = .)) +
+  geom_bar(stat = "identity")
+```
+
+Area data is distributed evenly regardless of population.
+
+```{r}
+# EDA about sex
+train_data_eng$sex %>%
+  table %>%
+  as.data.frame() %>%
+  ggplot(aes(x =  ., y = Freq, fill = .)) +
+  geom_bar(stat = "identity")
+```
+
+There is no difference in the number of records between genders.
+
+
+```{r}
+# EDA about partner
+train_data_eng$partner %>%
+  table %>%
+  as.data.frame() %>%
+  ggplot(aes(x =  ., y = Freq, fill = .)) +
+  geom_bar(stat = "identity")
+```
+
+There is no difference in the number of records due to marriage status.
+
+
+```{r}
+# EDA about num_child
+train_data_eng$num_child %>%
+  table %>%
+  as.data.frame() %>%
+  ggplot(aes(x =  ., y = Freq, fill = .)) +
+  geom_bar(stat = "identity")
+```
+
+Most data is 0, but it is expected that there is a strong correlation with the partner column.
+
+
+```{r}
+# EDA about education
+train_data_eng$education %>%
+  table %>%
+  as.data.frame() %>%
+  ggplot(aes(x =  ., y = Freq, fill = .)) +
+  geom_bar(stat = "identity")
+
+```
+
+High school graduates are the most common.
+
+
+```{r}
+# EDA about service_length
+hist(train_data_eng$service_length, main="service_length", xlab="service_length", col="#993435")
+```
+
+This column is expected to have a strong correlation with age.
+
+```{r}
+# EDA about study_time
+hist(train_data_eng$study_time, main="study_time", xlab="study_time", col="#993435")
+```
+
+
+```{r}
+# EDA about commute
+hist(train_data_eng$commute, main="commute", xlab="commute", col="#993435")
+```
+
+This column is expected to have a strong connection with the area.
+
+```{r}
+# EDA about overtime
+hist(train_data_eng$overtime, main="overtime", xlab="overtime", col="#993435")
+```
+
+It seems to be related to position and age.
+
+
+```{r}
+# EDA about salary
+hist(train_data_eng$salary, main="salary", xlab="salary", col="#993435")
+```
+
+This column, which is the objective variable, has a downward-sloping distribution.
+
+## Create correlation matrix
+Note: Execute the following code to calculate the correlation matrix at once. However, due to the heavy processing, please run only high-performance PCs.
+
+```{r}
+# Execute the following code to calculate the correlation matrix at once. However, due to the heavy processing, please run only high-performance PCs.
+
+# psych::pairs.panels(train_data_eng[-1])
+
+```
+
+
+## Check relationships between data using scatter plots
+Check the distribution between two variables that are likely to have strong correlations or special relationships.
+Note: This code is not necessary if the code of the previous correlation matrix was executed.
+
+```{r}
+
+# Scatter plot of "commute" and "salary"
+plot(train_data_eng$commute,train_data_eng$salary)
+
+# Scatter plot of "position" and "age"
+plot(train_data_eng$position,train_data_eng$age)
+
+# Scatter plot of "study_time" and "age"
+plot(train_data_eng$study_time,train_data_eng$age)
+
+# Scatter plot of "study_time" and "overtime"
+plot(train_data_eng$study_time,train_data_eng$overtime)
+
+# Scatter plot of "study_time" and "commute"
+plot(train_data_eng$study_time,train_data_eng$commute)
+
+# Scatter plot of "commute" and "overtime"
+plot(train_data_eng$commute,train_data_eng$overtime)
+
+```
+It seems that the higher the age, the higher the position.
+
+Of particular note here are the scatter plots of "commute" and "salary", which show a special tendency.
+Multiple groups appear to be represented in one scatter plot.
+There is a special relationship between "commute" and "salary".
+
+
+```{r}
+train_data_eng %>% ggplot(aes(y = salary, x = commute)) + geom_point(aes(colour=partner))
+```
+```{r}
+train_data_eng %>% filter(area == 13 | area == 27) %>% ggplot(aes(y = salary, x = commute)) + geom_point(aes(colour=partner))
+```
+
+```{r}
+test_train3 <- train_data_eng %>% filter((area == 13 | area == 27) & partner == 0) 
+head(test_train3)
+plot(test_train3$commute,test_train3$salary)
+```
+
+```{r}
+test_train4 <- train_data_eng %>% filter(area != 13 & area != 27 & partner == 0) 
+head(test_train4)
+plot(test_train4$commute,test_train4$salary)
+```
+
+
+
+```{r}
+train_data_eng %>% filter(area != 13 & area != 27) %>% ggplot(aes(y = salary, x = commute)) + geom_point(aes(colour=partner))
+```
+
+```{r}
+train_data_eng %>% filter(area == 13 | area == 27) %>% ggplot(aes(y = salary, x = commute)) + geom_point(aes(colour=partner))
+```
+
+
+The data show that trends vary greatly depending on the existence of partners and whether they are urban residents.
+Therefore, a new column segmented by these two points is added.
+
+
+Below, the description of the newly added column
+
+```{r}
+test_train10 <- train_data_eng %>% mutate(.,segment = if_else(area != 13 & area != 27 & partner == 0 , true = 1, false = 0)) 
+head(test_train10)
+
+```
+
+
+
+```{r}
+train_data_eng_segment <- train_data_eng %>% mutate(.,segment = 
+                                            case_when(
+                                              area != 13 & area != 27 & partner == 0 ~ 1,
+                                              area != 13 & area != 27 & partner == 1 ~ 2,
+                                              (area == 13 | area == 27) & partner == 0 ~ 3,
+                                              (area == 13 | area == 27) & partner == 1 ~ 4
+                                            ))
+head(train_data_eng_segment)
+```
+
+
+
+```{r}
+train_data_eng_segment %>% ggplot(aes(y = salary, x = commute)) + geom_point(aes(colour=segment))
+```
+
+
+
+
+```{r}
+test_data_eng_segment <- test_data_eng %>% mutate(.,segment = 
+                                            case_when(
+                                              area != 13 & area != 27 & partner == 0 ~ 1,
+                                              area != 13 & area != 27 & partner == 1 ~ 2,
+                                              (area == 13 | area == 27) & partner == 0 ~ 3,
+                                              (area == 13 | area == 27) & partner == 1 ~ 4
+                                            ))
+
+
+```
+
+
+# segment model
+```{r}
+set.seed(123)
+modelRanger <- train(
+  salary ~  . -id, 
+  data = train_data_eng_segment, 
+  method = "ranger", 
+  tuneLength = 4,
+  preProcess = c('center', 'scale'),
+  trControl = trainControl(method = "cv")
+)
+
+# predRanger_test <- predict(modelRanger, test_data_eng_segment)
+# MAE(predRanger_test, test_data_eng2$salary)
+```
+
+
+
+```{r}
+predRanger <- predict(modelRanger, test_data_eng_segment)
+d <- data.frame(0:8999, predRanger)
+colnames(d) <- c("id", "y")
+
+write.csv(d, "submission5.csv", row.names=FALSE)
+```
+
+
+# nomal model
+```{r}
+set.seed(123)
+modelRanger <- train(
+  salary ~  . -id, 
+  data = train_data_eng, 
+  method = "ranger", 
+  tuneLength = 4,
+  preProcess = c('center', 'scale'),
+  trControl = trainControl(method = "cv")
+)
+
+# predRanger_test <- predict(modelRanger, test_data_eng)
+# MAE(predRanger_test, test_data_eng2$salary)
+```
+
+
+
+```{r}
+predRanger <- predict(modelRanger, test_data_eng)
+d <- data.frame(0:8999, predRanger)
+colnames(d) <- c("id", "y")
+
+write.csv(d, "submission6.csv", row.names=FALSE)
+```
+
+
+
+# rf
+```{r}
+set.seed(123)
+modelRF <- train(
+  salary ~ . -id, 
+  data = train_data_eng, 
+  method = "rf", 
+  tuneLength = 4,
+  preProcess = c('center', 'scale'),
+  trControl = trainControl(method = "cv")
+)
+
+# predRanger_test <- predict(modelRanger, test_data_eng)
+# MAE(predRanger_test, test_data_eng2$salary)
+```
+
+
+```{r}
+predRF <- predict(modelRF, test_data_eng)
+d <- data.frame(0:8999, predRF)
+colnames(d) <- c("id", "y")
+
+write.csv(d, "submission8.csv", row.names=FALSE)
+```
+
+
+# Rborist
+```{r}
+set.seed(123)
+modelRborist <- train(
+  salary ~ . -id, 
+  data = train_data_eng, 
+  method = "Rborist", 
+  tuneLength = 4,
+  preProcess = c('center', 'scale'),
+  trControl = trainControl(method = "cv")
+)
+```
+
+
+```{r}
+predRborist <- predict(modelRborist, test_data_eng)
+d <- data.frame(0:8999, predRborist)
+colnames(d) <- c("id", "y")
+
+write.csv(d, "submission9.csv", row.names=FALSE)
+```
+
+
+
+Accuracy was improved by performing feature engineering and adding variables.
+
+In this data format, ranger seems to be the fastest in random forest.
+
+# conclusion
+It was found that accuracy was improved by performing feature engineering and creating meaningful variables in addition to existing variables. On the other hand, the use of the caret package requires a large computational load on a home PC, and it took a long time to complete the processing. It may be necessary to reduce or aggregate variables.
+This time, the submission of the competition was unlimited, so the prepared training data was not validated. 
